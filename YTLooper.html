@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>YouTube Looper</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f4;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      max-width: 700px;
+      margin: 0 auto;
+      background: #fff;
+      padding: 20px 30px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    h1 {
+      text-align: center;
+      color: #333;
+    }
+    label {
+      display: block;
+      margin: 10px 0 5px;
+      color: #555;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 8px;
+      font-size: 1rem;
+      margin-bottom: 10px;
+      box-sizing: border-box;
+    }
+    button {
+      padding: 8px 16px;
+      font-size: 1rem;
+      margin-top: 5px;
+      cursor: pointer;
+    }
+    #player {
+      margin: 20px 0;
+      text-align: center;
+    }
+    .slider-container {
+      margin-top: 10px;
+    }
+    input[type="range"] {
+      width: 100%;
+    }
+    .time-label {
+      font-family: monospace;
+      margin-left: 10px;
+      color: #000;
+    }
+    .controls {
+      margin-top: 15px;
+    }
+    .controls button, .controls input[type="range"] {
+      margin-right: 10px;
+      vertical-align: middle;
+    }
+    .controls input[type="range"] {
+      width: 100px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>YouTube Looper</h1>
+    <label for="videoInput">Enter YouTube video here:</label>
+    <input type="text" id="videoInput" placeholder="Paste URL or video ID here" />
+    <button id="loadBtn">Load Video</button>
+
+    <!-- Video player will replace this div -->
+    <div id="player"></div>
+
+    <div class="slider-container">
+      <label for="startSlider">Start Time: <span id="startLabel" class="time-label">0:00</span></label>
+      <input type="range" id="startSlider" min="0" step="1" value="0" />
+    </div>
+    <div class="slider-container">
+      <label for="endSlider">End Time: <span id="endLabel" class="time-label">0:00</span></label>
+      <input type="range" id="endSlider" min="0" step="1" value="0" />
+    </div>
+
+    <div class="controls">
+      <button id="playPauseBtn">Play</button>
+      <button id="muteBtn">Mute</button>
+      <label for="volumeSlider">Volume:</label>
+      <input type="range" id="volumeSlider" min="0" max="100" value="100" />
+    </div>
+  </div>
+
+  <!-- Load the YouTube IFrame API -->
+  <script async src="https://www.youtube.com/iframe_api"></script>
+  <script>
+    let player;
+    let apiReady = false;
+    let startTime = 0;
+    let endTime = 0;
+    const videoInput = document.getElementById('videoInput');
+    const loadBtn = document.getElementById('loadBtn');
+    const startSlider = document.getElementById('startSlider');
+    const endSlider = document.getElementById('endSlider');
+    const startLabel = document.getElementById('startLabel');
+    const endLabel = document.getElementById('endLabel');
+    const playPauseBtn = document.getElementById('playPauseBtn');
+    const muteBtn = document.getElementById('muteBtn');
+    const volumeSlider = document.getElementById('volumeSlider');
+
+    // Utility to format seconds as M:SS
+    function formatTime(sec) {
+      sec = Math.max(0, Math.round(sec));
+      const m = Math.floor(sec / 60);
+      const s = sec % 60;
+      return m + ':' + (s < 10 ? '0' : '') + s;
+    }
+
+    // Parse YouTube URL or ID
+    function extractVideoID(url) {
+      // Regex for various YouTube URL formats
+      const regExp = /^.*(?:youtu.be\/|v\/|embed\/|watch\?v=)([^#&?]*).*/;
+      const match = url.match(regExp);
+      if (match && match[1].length > 0) {
+        return match[1];
+      }
+      // If no match, assume input is direct ID
+      return url.trim();
+    }
+
+    // Initialize YouTube player when API is ready
+    function onYouTubeIframeAPIReady() {
+      apiReady = true;
+      // Create a dummy player initially or wait for user to load video
+    }
+
+    // Load or switch video when user clicks Load
+    loadBtn.addEventListener('click', function() {
+      const idOrUrl = videoInput.value.trim();
+      if (!idOrUrl) {
+        alert('Please enter a YouTube URL or video ID.');
+        return;
+      }
+      const videoId = extractVideoID(idOrUrl);
+      if (!videoId) {
+        alert('Invalid YouTube URL/ID.');
+        return;
+      }
+      // If player not yet created, create it with first video
+      if (!player) {
+        player = new YT.Player('player', {
+          height: '390',
+          width: '640',
+          videoId: videoId,
+          playerVars: {
+            controls: 1,
+            modestbranding: 1,
+            rel: 0
+          },
+          events: {
+            'onReady': onPlayerReady,
+            'onStateChange': onPlayerStateChange
+          }
+        });
+      } else {
+        // If already have a player, load new video by ID
+        player.loadVideoById({ videoId: videoId, startSeconds: 0 });
+      }
+      // Reset sliders and labels (they will be updated onReady)
+      startTime = 0;
+      endTime = 0;
+      startSlider.value = 0;
+      startLabel.textContent = formatTime(0);
+      endSlider.value = 0;
+      endLabel.textContent = formatTime(0);
+      playPauseBtn.textContent = 'Pause';
+    });
+
+    // When player is ready, set up initial range values and autoplay
+    function onPlayerReady(event) {
+      const duration = player.getDuration();
+      // Set slider ranges based on video duration
+      startSlider.max = duration;
+      endSlider.max = duration;
+      endTime = duration;
+      startTime = 0;
+      endSlider.value = duration;
+      startLabel.textContent = formatTime(startTime);
+      endLabel.textContent = formatTime(endTime);
+      event.target.playVideo();  // Auto-play when loaded
+    }
+
+    // Handle play/pause button
+    playPauseBtn.addEventListener('click', function() {
+      if (!player) return;
+      const state = player.getPlayerState();
+      if (state === YT.PlayerState.PLAYING) {
+        player.pauseVideo();
+        playPauseBtn.textContent = 'Play';
+      } else {
+        player.playVideo();
+        playPauseBtn.textContent = 'Pause';
+      }
+    });
+
+    // Handle mute button
+    muteBtn.addEventListener('click', function() {
+      if (!player) return;
+      if (player.isMuted()) {
+        player.unMute();
+        muteBtn.textContent = 'Mute';
+      } else {
+        player.mute();
+        muteBtn.textContent = 'Unmute';
+      }
+    });
+
+    // Volume slider control
+    volumeSlider.addEventListener('input', function() {
+      const vol = parseInt(this.value);
+      if (player) player.setVolume(vol);
+    });
+
+    // Update start time from slider
+    startSlider.addEventListener('input', function() {
+      startTime = parseInt(this.value);
+      // Clamp so startTime <= endTime
+      if (startTime > endTime) {
+        endTime = startTime;
+        endSlider.value = endTime;
+        endLabel.textContent = formatTime(endTime);
+      }
+      startLabel.textContent = formatTime(startTime);
+      // If video is playing and user moved start ahead of current time, seek
+      if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
+        let current = player.getCurrentTime();
+        if (current < startTime || current > endTime) {
+          player.seekTo(startTime);
+        }
+      }
+    });
+
+    // Update end time from slider
+    endSlider.addEventListener('input', function() {
+      endTime = parseInt(this.value);
+      // Clamp so endTime >= startTime
+      if (endTime < startTime) {
+        startTime = endTime;
+        startSlider.value = startTime;
+        startLabel.textContent = formatTime(startTime);
+      }
+      endLabel.textContent = formatTime(endTime);
+    });
+
+    // Loop checking: every 500ms, if playing and out of range, seek to start
+    setInterval(function() {
+      if (player && player.getPlayerState() === YT.PlayerState.PLAYING) {
+        const current = player.getCurrentTime();
+        if (current >= endTime || current < startTime) {
+          player.seekTo(startTime);
+        }
+      }
+    }, 500);
+
+    // Optional: handle state changes if needed
+    function onPlayerStateChange(event) {
+      // This function can be used for advanced handling if desired
+      // e.g., re-loop when ended:
+      // if (event.data == YT.PlayerState.ENDED) {
+      //   player.seekTo(startTime);
+      // }
+    }
+  </script>
+  <div style="text-align: center; margin-top: 40px; font-size: 16px; color: #555;">
+    <p>If you enjoy this tool, visit my GitHub <a href="https://github.com/jackreak" target="_blank" style="color: #0073e6; text-decoration: underline;">here</a>.</p>
+  </div>
+
+</body>
+</html>
