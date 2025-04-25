@@ -1,5 +1,4 @@
 YouTube Looper - README
-=======================================
 
 Project Title: YouTube Looper
 Author: Jack Reak
